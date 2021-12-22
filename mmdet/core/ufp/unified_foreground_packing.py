@@ -75,7 +75,7 @@ def ForegroundRegionGeneration(bbox_list, scaled_bbox_list):
                 avg_areas[idx] += avg_areas[jdx]
                 cnt[idx] += cnt[jdx]
         scaled_bbox_list[idx] = A
-
+    avg_areas = avg_areas/cnt
     scale_factor = np.array([1] * num_bbox)
     for idx in range(num_bbox):
         if avg_areas[idx] < 32 * 32:
@@ -182,92 +182,12 @@ def UnifiedForegroundPacking(bbox_list, scale, input_shape, output_shape=[1333,8
     return result, new_width, new_height 
 
 
-
-def merge_bbox(bbox_list, scale=None, image_shape=None):
-    num_bbox = bbox_list.shape[0]
-    avg_area = [0] * num_bbox
-    num_cnt = [0] * num_bbox
-    if not image_shape:
-        image_shape = [1333, 1333]
-    for i in range(num_bbox):
-        avg_area[i] = get_bbox_area(bbox_list[i])
-        num_cnt[i] += 1
-    if scale:
-        # print(bbox_list)
-        bbox_list = scale_boxes(bbox_list, scale, image_shape)
-
-    flag = [True] * num_bbox
-    for idx in range(num_bbox):
-        if not flag[idx]:
-            continue
-        for jdx in range(num_bbox):
-            if not flag[jdx] or idx == jdx:
-                continue
-            merge_area, origin_area, merge_bbox = get_merge_bbox_aera(bbox_list[idx], bbox_list[jdx])
-            if merge_area < origin_area:
-                bbox_list[idx] = merge_bbox
-                avg_area[idx] += avg_area[jdx]
-                num_cnt[idx] += num_cnt[jdx]
-                flag[jdx] = False
-    # avg_area = [0] * num_bbox
-    scale_factor = [1] * num_bbox
-    for idx in range(num_bbox):
-        avg_area[idx] = avg_area[idx] / num_cnt[idx]
-        if avg_area[idx] < 32 * 32:
-            scale_factor[idx] = 4
-        elif avg_area[idx] < 96 * 96:
-            scale_factor[idx] = 2
-        else:
-            scale_factor[idx] = 1
-    boxes = []
-    for idx, _flag in enumerate(flag):
-        if _flag:
-            w = bbox_list[idx][2] - bbox_list[idx][0]
-            h = bbox_list[idx][3] - bbox_list[idx][1]
-            factor = scale_factor[idx]
-
-            boxes.append([w * factor, h * factor])
-    width_min = 300
-    width_max = 2666
-    while (width_min <= width_max):
-        width_mid = (width_min + width_max) / 2
-        height, rectangles = phsppog(width_mid, boxes, sorting='height')
-        if height > width_mid:
-            width_min = width_mid + 1
-        else:
-            width_max = width_mid - 1
-
-    result = []
-    new_width = 0
-    new_height = 0
-    for post_rec in rectangles:
-        x = post_rec.x
-        y = post_rec.y
-        w = post_rec.w
-        h = post_rec.h
-        new_width = max(new_width, x + w)
-        new_height = max(new_height, y + h)
-        for idx in range(num_bbox):
-            if not flag[idx]:
-                continue
-            factor = scale_factor[idx]
-            _w = bbox_list[idx][2] - bbox_list[idx][0]
-            _h = bbox_list[idx][3] - bbox_list[idx][1]
-            if _w * factor == w and _h * factor == h:
-                flag[idx] = False
-                result.append([bbox_list[idx][0], bbox_list[idx][1], _w, _h, x, y, factor])
-
-    return result, new_width, new_height
-
-
 if __name__ == '__main__':
     boxes = [
         [5, 3,10,10], [5, 3,10,10], [2, 4,10,10], [30, 8,10,10], [10, 20,10,10],
         [20, 10,10,10], [5, 5,10,10], [5, 5,10,10], [10, 10,10,10], [10, 5,10,10],
         [6, 4,10,10], [1, 10,10,10], [8, 4,10,10], [6, 6,10,10], [20, 14,10,1000]
     ]
-    old_out = merge_bbox(np.array(boxes), 1.5, (1333,1333))
-    print(old_out)
     new_out = UnifiedForegroundPacking(np.array(boxes), 1.5, (1333,1333))
     print(new_out)
 
