@@ -22,15 +22,12 @@ model = dict(
         add_extra_convs='on_output',
         num_outs=5),
     bbox_head=dict(
-        type='MPHead',
-        num_words=200,
-        beta=0,
-        proxies_list =[2, 3, 2, 5, 4, 8, 8, 4, 3, 3],
-        gamma=10,
+        type='GFLHead',
         num_classes=10,
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
+        
         anchor_generator=dict(
             type='AnchorGenerator',
             ratios=[1.0],
@@ -172,7 +169,3 @@ evaluation = dict(interval=1, metric='bbox')
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(
     _delete_=True, grad_clip=dict(max_norm=10, norm_type=2))
-
-custom_hooks = [
-    dict(type='OptimalTransportHook', priority='HIGHEST',start_emb=2)
-]

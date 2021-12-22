@@ -18,12 +18,33 @@ The config of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
 
 # Training
 
+The update of BoIW is only suppose singal GPU
+
 ## Prepare
 
-We provide two data set conversion tools.
+Build by yourself: We provide two data set conversion tools.
 
 ```shell
 # conver VisDrone to COCO
 python UFPMP-Det-Tools/build_dataset/VisDrone2COCO.py
-# 
+# conver UAVDT to COCO
+python UFPMP-Det-Tools/build_dataset/UAVDT2COCO.py
 ```
+
+Download:
+
+coming soon
+
+## Train Coarse Detector
+
+```shell
+CUDA_VISIBLE_DEVICES=0 python tools/train.py ./configs/UFPMP-Det/coarse_det.py
+```
+
+## Train MP-Det
+
+```
+CUDA_VISIBLE_DEVICES=0 python tools/train.py ./config/UFPMP-Det/mp_det_res50.py
+```
+
+# Test

@@ -7,7 +7,7 @@ import math
 from mmcv.parallel import collate, scatter
 from mmdet.datasets.pipelines import Compose
 import numpy as np
-from mmdet.core import UnifiedForegroundPacking, merge_bbox
+from mmdet.core import UnifiedForegroundPacking
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import os
