@@ -1,5 +1,7 @@
+import math
+import random
 import numpy as np
-from spp import phsppog
+from .spp import phsppog
 
 def scale_boxes(bboxes, scale, image_shape=[1333, 1333]):
     """Expand an array of boxes by a given scale.
@@ -49,22 +51,40 @@ def get_bbox_area(bbox1):
 
 
 
-def ForegroundRegionGeneration(bbox_list):
+def ForegroundRegionGeneration(bbox_list, scaled_bbox_list):
     num_bbox = bbox_list.shape[0]
+    x1 = bbox_list[:, 0]
+    y1 = bbox_list[:, 1]
+    x2 = bbox_list[:, 2]
+    y2 = bbox_list[:, 3]
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    avg_areas = areas
+    cnt = np.array([1] * num_bbox)
     is_used = [True] * num_bbox
     for idx in range(num_bbox):
         if not is_used[idx]:
             continue
-        A = bbox_list[idx]
+        A = scaled_bbox_list[idx]
         for jdx in range(num_bbox):
             if not is_used[jdx] or idx == jdx:
                 continue
-            merge_area, origin_area, merge_bbox = get_merge_bbox_aera(A, bbox_list[jdx])
+            merge_area, origin_area, merge_bbox = get_merge_bbox_aera(A, scaled_bbox_list[jdx])
             if merge_area < origin_area:
                 A = merge_bbox
                 is_used[jdx] = False
-        bbox_list[idx] = A
-    return bbox_list[is_used]
+                avg_areas[idx] += avg_areas[jdx]
+                cnt[idx] += cnt[jdx]
+        scaled_bbox_list[idx] = A
+    avg_areas = avg_areas/cnt
+    scale_factor = np.array([1] * num_bbox)
+    for idx in range(num_bbox):
+        if avg_areas[idx] < 32 * 32:
+            scale_factor[idx] = 4
+        elif avg_areas[idx] < 96 * 96:
+            scale_factor[idx] = 2
+        else:
+            scale_factor[idx] = 1
+    return scaled_bbox_list[is_used], scale_factor[is_used]
 
 
 def ForegroundRegionScaleEqualization(bbox_list, foreground_region):
@@ -91,23 +111,25 @@ def ForegroundRegionScaleEqualization(bbox_list, foreground_region):
 
     scale_factor = [1] * foreground_region.shape[0]
     for idx in range(foreground_region.shape[0]):
+        # scale_factor[idx] = math.sqrt(96 * 96 / avg_areas[idx])
         if avg_areas[idx] < 32 * 32:
             scale_factor[idx] = 4
         elif avg_areas[idx] < 96 * 96:
             scale_factor[idx] = 2
         else:
             scale_factor[idx] = 1
+    
+
+    return scale_factor
+    
+def Packing(foreground_region, scale_factor, output_shape=[1333,800]):
     boxes = []
     for idx, _flag in enumerate(scale_factor):
-        w = bbox_list[idx][2] - bbox_list[idx][0]
-        h = bbox_list[idx][3] - bbox_list[idx][1]
+        w = foreground_region[idx][2] - foreground_region[idx][0]
+        h = foreground_region[idx][3] - foreground_region[idx][1]
         factor = scale_factor[idx]
 
         boxes.append([w * factor, h * factor])
-
-    return boxes, scale_factor
-    
-def Packing(scaled_bbox_list, boxes, scale_factor):
     width_min = 300
     width_max = 2666
     while (width_min <= width_max):
@@ -118,7 +140,7 @@ def Packing(scaled_bbox_list, boxes, scale_factor):
         else:
             width_max = width_mid - 1
 
-    flag = [True] * scaled_bbox_list.shape[0]
+    flag = [True] * foreground_region.shape[0]
     result = []
     new_width = 0
     new_height = 0
@@ -129,121 +151,47 @@ def Packing(scaled_bbox_list, boxes, scale_factor):
         h = post_rec.h
         new_width = max(new_width, x + w)
         new_height = max(new_height, y + h)
-        for idx in range(scaled_bbox_list.shape[0]):
+        for idx in range(foreground_region.shape[0]):
             if not flag[idx]:
                 continue
             factor = scale_factor[idx]
-            _w = scaled_bbox_list[idx, 2] - scaled_bbox_list[idx, 0]
-            _h = scaled_bbox_list[idx, 3] - scaled_bbox_list[idx, 1]
+            _w = foreground_region[idx, 2] - foreground_region[idx, 0]
+            _h = foreground_region[idx, 3] - foreground_region[idx, 1]
             if _w * factor == w and _h * factor == h:
                 flag[idx] = False
-                result.append([scaled_bbox_list[idx, 0], scaled_bbox_list[idx, 1], _w, _h, x, y, factor])
+                result.append([foreground_region[idx, 0], foreground_region[idx, 1], _w, _h, x, y, factor])
 
     return result, new_width, new_height
     
 
 
-def UnifiedForegroundPacking(bbox_list, scale, image_shape):
+def UnifiedForegroundPacking(bbox_list, scale, input_shape, output_shape=[1333,800]):
     
     # scale bbox
-    scaled_bbox_list = scale_boxes(bbox_list, scale, image_shape)
+    scaled_bbox_list = scale_boxes(bbox_list, scale, input_shape)
     # Foreground Region Generation Algorithm
-    foreground_region = ForegroundRegionGeneration(scaled_bbox_list)
+    foreground_region, scale_factor = ForegroundRegionGeneration(bbox_list, scaled_bbox_list)
+
 
     # Foreground Region Scale Equalization
-    boxes, scale_factor = ForegroundRegionScaleEqualization(bbox_list, foreground_region)
+    # scale_factor = ForegroundRegionScaleEqualization(bbox_list, foreground_region)
 
     # Packing
-    result, new_width, new_height = Packing(foreground_region, boxes, scale_factor)
+    result, new_width, new_height = Packing(foreground_region, scale_factor, output_shape)
 
     return result, new_width, new_height 
-
-
-
-def merge_bbox(bbox_list, scale=None, image_shape=None):
-    num_bbox = bbox_list.shape[0]
-    avg_area = [0] * num_bbox
-    num_cnt = [0] * num_bbox
-    if not image_shape:
-        image_shape = [1333, 1333]
-    for i in range(num_bbox):
-        avg_area[i] = get_bbox_area(bbox_list[i])
-        num_cnt[i] += 1
-    if scale:
-        # print(bbox_list)
-        bbox_list = scale_boxes(bbox_list, scale, image_shape)
-
-    flag = [True] * num_bbox
-    for idx in range(num_bbox):
-        if not flag[idx]:
-            continue
-        for jdx in range(num_bbox):
-            if not flag[jdx] or idx == jdx:
-                continue
-            merge_area, origin_area, merge_bbox = get_merge_bbox_aera(bbox_list[idx], bbox_list[jdx])
-            if merge_area < origin_area:
-                bbox_list[idx] = merge_bbox
-                avg_area[idx] += avg_area[jdx]
-                num_cnt[idx] += num_cnt[jdx]
-                flag[jdx] = False
-    # avg_area = [0] * num_bbox
-    scale_factor = [1] * num_bbox
-    for idx in range(num_bbox):
-        avg_area[idx] = avg_area[idx] / num_cnt[idx]
-        if avg_area[idx] < 32 * 32:
-            scale_factor[idx] = 4
-        elif avg_area[idx] < 96 * 96:
-            scale_factor[idx] = 2
-        else:
-            scale_factor[idx] = 1
-    boxes = []
-    for idx, _flag in enumerate(flag):
-        if _flag:
-            w = bbox_list[idx][2] - bbox_list[idx][0]
-            h = bbox_list[idx][3] - bbox_list[idx][1]
-            factor = scale_factor[idx]
-
-            boxes.append([w * factor, h * factor])
-    width_min = 300
-    width_max = 2666
-    while (width_min <= width_max):
-        width_mid = (width_min + width_max) / 2
-        height, rectangles = phsppog(width_mid, boxes, sorting='height')
-        if height > width_mid:
-            width_min = width_mid + 1
-        else:
-            width_max = width_mid - 1
-
-    result = []
-    new_width = 0
-    new_height = 0
-    for post_rec in rectangles:
-        x = post_rec.x
-        y = post_rec.y
-        w = post_rec.w
-        h = post_rec.h
-        new_width = max(new_width, x + w)
-        new_height = max(new_height, y + h)
-        for idx in range(num_bbox):
-            if not flag[idx]:
-                continue
-            factor = scale_factor[idx]
-            _w = bbox_list[idx][2] - bbox_list[idx][0]
-            _h = bbox_list[idx][3] - bbox_list[idx][1]
-            if _w * factor == w and _h * factor == h:
-                flag[idx] = False
-                result.append([bbox_list[idx][0], bbox_list[idx][1], _w, _h, x, y, factor])
-
-    return result, new_width, new_height
 
 
 if __name__ == '__main__':
     boxes = [
         [5, 3,10,10], [5, 3,10,10], [2, 4,10,10], [30, 8,10,10], [10, 20,10,10],
         [20, 10,10,10], [5, 5,10,10], [5, 5,10,10], [10, 10,10,10], [10, 5,10,10],
-        [6, 4,10,10], [1, 10,10,10], [8, 4,10,10], [6, 6,10,10], [20, 14,10,10]
+        [6, 4,10,10], [1, 10,10,10], [8, 4,10,10], [6, 6,10,10], [20, 14,10,1000]
     ]
-    out = UnifiedForegroundPacking(np.array(boxes), 1.5, (1333,1333))
+    new_out = UnifiedForegroundPacking(np.array(boxes), 1.5, (1333,1333))
+    print(new_out)
+
+
     # print(out)
     # boxes = [
     #     [5, 3], [5, 3], [2, 4], [30, 8], [10, 20],
