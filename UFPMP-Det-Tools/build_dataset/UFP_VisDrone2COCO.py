@@ -1,3 +1,4 @@
+import argparse
 from mmdet.apis import init_detector, show_result_pyplot, inference_detector
 import warnings
 import cv2
@@ -5,16 +6,16 @@ import mmcv
 import torch
 from mmcv.parallel import collate, scatter
 from mmdet.datasets.pipelines import Compose
-from mmdet.ops import RoIAlign, RoIPool
 import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import os
 import json
-from analyse.merge_bbox import merge_bbox
 from mmdet.core import UnifiedForegroundPacking
 import math
 import copy
+
+
 
 
 def compute_iof(pos1, pos2):
@@ -34,38 +35,7 @@ def compute_iof(pos1, pos2):
         return inter / min(area1, area2)
 
 
-# modify test
-class LoadImage(object):
-    """A simple pipeline to load image."""
-
-    def __call__(self, results, bbox=None):
-        """Call function to load images into results.
-
-        Args:
-            results (dict): A result dict contains the file name
-                of the image to be read.
-
-        Returns:
-            dict: ``results`` will be returned containing loaded image.
-        """
-        if isinstance(results['img'], str):
-            results['filename'] = results['img']
-            results['ori_filename'] = results['img']
-        else:
-            results['filename'] = None
-            results['ori_filename'] = None
-        img = mmcv.imread(results['img'])
-        if bbox:
-            x1, x2, y1, y2, _ = bbox
-            img = img[x1:x2, y1:y2, :]
-        results['img'] = img
-        results['img_fields'] = ['img']
-        results['img_shape'] = img.shape
-        results['ori_shape'] = img.shape
-        return results
-
-
-def my_inference_detector(model, data):
+def ufp_inference_detector(model, data):
     """Inference image(s) with the detector.
 
     Args:
@@ -107,57 +77,30 @@ def my_inference_detector(model, data):
     return result
 
 
-def merge_result(final_result, second_result, offset):
-    offset_x, offset_y = offset
-    for idx, result in enumerate(second_result):
-        result[:, 0] += offset_x
-        result[:, 1] += offset_y
-        result[:, 2] += offset_x
-        result[:, 3] += offset_y
-        final_result[idx] = np.vstack((final_result[idx], result))
-    return final_result
-
-
-def display_result(results, img, img_name):
-    img_data = cv2.imread(img)
-    for result in results:
-        x1, y1, w, h, n_x, n_y = result
-        cv2.rectangle(img_data, (x1, y1), (x1 + w, y1 + h), (0, 0, 255))
-    # cv2.imwrite('/home/huangyecheng/UAV/mmdetection/work_dirs/img_results/' + img_name, img_data)
-
-
-def display_result_gt(results, img, img_name):
-    img_data = cv2.imread(img)
-    for result in results:
-        x1, y1, w, h = result
-        cv2.rectangle(img_data, (x1, y1), (x1 + w, y1 + h), (0, 0, 255))
-    # cv2.imwrite('/home/huangyecheng/UAV/mmdetection/work_dirs/img_results/' + img_name, img_data)
-
-
-def display_merge_result(results, img, img_name, w, h):
+def draw_ufp_result(results, img, img_name, w, h, anno_root=None):
     w = math.ceil(w)
     h = math.ceil(h)
     img_data = cv2.imread(img)
-    anno_path = '/home/huangyecheng/dataset/COCO/annotations/UAVtrain/' + img_name[:-4] + '.txt'
-    anno = open(anno_path)
-    for rec in anno.readlines():
-        # print(rec,img_name)
-        rec = rec.strip()
-        x, y, _w, _h, s, _cls = [int(_) for _ in rec.split(',')[:6]]
-        if _cls == 0:
-            img_data[y:y + _h, x:x + _w, :] = 0
-    anno.close()
+    if anno_root:
+        anno_path = os.path.join(anno_root, img_name[:-4] + '.txt')
+        anno = open(anno_path)
+        for rec in anno.readlines():
+            rec = rec.strip()
+            x, y, _w, _h, s, _cls = [int(_) for _ in rec.split(',')[:6]]
+            if _cls == 0:
+                img_data[y:y + _h, x:x + _w, :] = 0
+        anno.close()
     new_img = np.zeros((h, w, 3))
     for result in results:
-        # x1, y1, w, h, n_x, n_y = result
         x1, y1, w, h, n_x, n_y, scale_factor = [math.floor(_) for _ in result]
-        # print(x1, y1, w, h, n_x, n_y, scale_factor,img_data.shape,new_img.shape)
         if w == 0 or h == 0:
             continue
         new_img[n_y:n_y + h * scale_factor, n_x:n_x + w * scale_factor, :] = cv2.resize(
             img_data[y1:y1 + h, x1:x1 + w, :], (w * scale_factor, h * scale_factor))
+    
+    return new_img
 
-    cv2.imwrite('/home/huangyecheng/dataset/COCO/images/strip_UAVtrain_scale_v1/' + img_name, new_img)
+    # cv2.imwrite('/home/huangyecheng/dataset/COCO/images/strip_UAVtrain_scale_v1/' + img_name, new_img)
 
 
 class MyEncoder(json.JSONEncoder):
@@ -171,15 +114,32 @@ class MyEncoder(json.JSONEncoder):
         else:
             return super(MyEncoder, self).default(obj)
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='build UFP images')
+    parser.add_argument('detector_config', help='the dir to save logs and models')
+    parser.add_argument('detector_ckpt', help='the dir to save logs and models')
+    parser.add_argument('dataset_root', help='the dir to save logs and models')
+    parser.add_argument('dataset_anno', help='the dir to save logs and models')
+    parser.add_argument('ufp_images_output_dir', help='the dir to save logs and models')
+    parser.add_argument('ufp_anno_output_path', help='the dir to save logs and models')
+    parser.add_argument('--txt_path', help='the dir to save logs and models', default=None)
+    args = parser.parse_args()
+    return args
 
 def main():
     device = 'cuda'
-    first_detecor_config = '/home/huangyecheng/UAV/mmdetection/configs/DA_DETECTION/fsaf.py'
-    first_detecor_config_ckpt = '/home/huangyecheng/UAV/mmdetection/work_dirs/fsaf/epoch_50.pth'
-    first_detector = init_detector(first_detecor_config, first_detecor_config_ckpt, device=device)
-    train_info = '/home/huangyecheng/dataset/COCO/annotations/instances_UAVtrain_v1.json'
-    root = '/home/huangyecheng/dataset/COCO/images/UAVtrain'
-    with open(train_info) as f:
+    args = parse_args()
+    detecor_config = args.detector_config
+    detecor_config_ckpt = args.detector_ckpt
+    dataset_root = args.dataset_root
+    dataset_anno = args.dataset_anno
+    ufp_images_output_dir = args.ufp_images_output_dir
+    ufp_anno_output_path = args.ufp_anno_output_path
+    txt_path = args.txt_path
+
+
+    detector = init_detector(detecor_config, detecor_config_ckpt, device=device)
+    with open(dataset_anno) as f:
         json_info = json.load(f)
     annotation_set = {}
     for annotation in json_info['annotations']:
@@ -188,25 +148,23 @@ def main():
             annotation_set[image_id] = []
         annotation_set[image_id].append(annotation)
 
-    coco = COCO(train_info)  # 导入验证集
+    coco = COCO(dataset_anno)  # 导入验证集
     size = len(list(coco.imgs.keys()))
     cnt = 1
     anno_id = 1
     new_annotations = []
     new_image = []
-    recall_list = []
-    area_list = []
     for key in range(size):
         print(cnt, size, end='\r')
         cnt += 1
         img_name = coco.imgs[key]['file_name']
         width = coco.imgs[key]['width']
         height = coco.imgs[key]['height']
-        img = os.path.join(root, img_name)
-        data = dict(img=img)
-        first_results = my_inference_detector(first_detector, LoadImage()(data))
+        img = os.path.join(dataset_root, img_name)
+        # data = dict(img=img)
+        first_results = inference_detector(detector, img)
         result = np.concatenate(first_results)
-        rec, w, h = UnifiedForegroundPacking(result[:, :4], 1.5, image_shape=[width, height])
+        rec, w, h = UnifiedForegroundPacking(result[:, :4], 1.5, input_shape=[width, height])
         cur_annotation = annotation_set[key]
         flag = [True] * len(cur_annotation)
         image_json = {
@@ -215,10 +173,10 @@ def main():
             'width': w,
             'id': key
         }
-        area_list.append(w * h)
         new_image.append(image_json)
-        _sum = 0
-        display_merge_result(rec, img, img_name, w, h)
+        ufp_img = draw_ufp_result(rec, img, img_name, w, h, txt_path)
+        cv2.imwrite(os.path.join(ufp_images_output_dir, img_name), ufp_img)
+
         for bbox in rec:
             x1, y1, w, h, n_x, n_y, scale_factor = [math.floor(_) for _ in bbox]
             t_bbox = [x1, y1, x1 + w, y1 + h]
@@ -231,19 +189,15 @@ def main():
                     new_x = max(0, n_x + (x - x1) * scale_factor)
                     new_y = max(0, n_y + (y - y1) * scale_factor)
                     if flag[idx]:
-                        _sum += 1
                         flag[idx] = False
                     new_anno['bbox'] = [new_x, new_y, w * scale_factor, h * scale_factor]
                     new_anno['id'] = anno_id
                     new_anno['area'] = w * scale_factor * h * scale_factor
                     anno_id += 1
                     new_annotations.append(new_anno)
-        recall_list.append(_sum / len(cur_annotation))
     json_info['images'] = new_image
     json_info['annotations'] = new_annotations
-    print(np.mean(recall_list))
-    print(np.mean(area_list))
-    with open('/home/huangyecheng/dataset/COCO/annotations/instance_merge_UAVtrain_scale_v1.json', 'w') as f:
+    with open(ufp_anno_output_path, 'w') as f:
         json.dump(json_info, f, cls=MyEncoder)
 
 

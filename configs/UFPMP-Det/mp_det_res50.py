@@ -107,7 +107,7 @@ albu_train_transforms = [
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', img_scale=(1333, 800), keep_ratio=True),
+    dict(type='Resize', img_scale=(1333, 1333), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -134,7 +134,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1333, 800),
+        img_scale=(1333, 1333),
         flip=True,
         transforms=[
             dict(type='Resize', keep_ratio=True),
@@ -153,18 +153,18 @@ data = dict(
         times=5,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'annotations/instances_UAVtrain.json',
-            img_prefix=data_root + '/images/UAVtrain/',
+            ann_file=data_root + 'annotations/instance_UFP_UAVtrain.json',
+            img_prefix=data_root + '/images/instance_UFP_UAVtrain/',
             pipeline=train_pipeline)),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_UAVval.json',
-        img_prefix=data_root + '/images/UAVval/',
+        ann_file=data_root + 'annotations/instance_UFP_UAVval.json',
+        img_prefix=data_root + '/images/instance_UFP_UAVval/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_UAVval.json',
-        img_prefix=data_root + '/images/UAVval/',
+        ann_file=data_root + 'annotations/instance_UFP_UAVval.json',
+        img_prefix=data_root + '/images/instance_UFP_UAVval/',
         pipeline=test_pipeline))
 evaluation = dict(interval=1, metric='bbox')
 

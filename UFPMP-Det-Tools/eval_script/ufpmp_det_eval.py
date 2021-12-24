@@ -1,3 +1,4 @@
+import argparse
 from mmdet.apis import init_detector, show_result_pyplot, inference_detector
 import warnings
 import cv2
@@ -145,22 +146,6 @@ def my_inference_detector(model, data):
     return result[0]
 
 
-def merge_result(final_result, second_result, offset):
-    offset_x, offset_y = offset
-    for idx, result in enumerate(second_result):
-        if len(result) == 0:
-            continue
-        result = np.array(result)
-        # print(result.shape)
-        # print(final_result[idx].shape)
-        result[:, 0] += offset_x
-        result[:, 1] += offset_y
-        result[:, 2] += offset_x
-        result[:, 3] += offset_y
-        final_result[idx] = np.vstack((final_result[idx], result))
-    return final_result
-
-
 def py_cpu_nms(dets, thresh):
     """Pure Python NMS baseline."""
     dets = np.array(dets)
@@ -193,82 +178,6 @@ def py_cpu_nms(dets, thresh):
     return keep
 
 
-def py_cpu_nms_relation(dets, thresh, relation_det):
-    """Pure Python NMS baseline."""
-    dets = np.array(dets)
-    flag = np.array([True] * dets.shape[0])
-    r_det = []
-    for _det in relation_det:
-        
-        _det = np.array(_det)
-        
-        if _det.shape[0] == 0:
-            continue
-        # print(_det.shape)
-        _det = _det[_det[:,4] > 0.5]
-        # print(_det.shape)
-        if _det.shape[0] == 0:
-            continue
-        
-        r_det.append(_det)
-    if not len(r_det) == 0:
-        r_det = np.concatenate(r_det)
-        r_flag = np.array([False] * r_det.shape[0])
-        all_det = np.concatenate([dets,r_det])
-        all_flag = np.concatenate([flag,r_flag])
-    else:
-        all_det = dets
-        all_flag = flag
-
-    x1 = all_det[:, 0]
-    y1 = all_det[:, 1]
-    x2 = all_det[:, 2]
-    y2 = all_det[:, 3]
-    scores = all_det[:, 4]
-    
-
-    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    order = scores.argsort()[::-1]
-
-    keep = []
-    while order.size > 0:
-        i = order[0]
-        keep.append(i)
-        xx1 = np.maximum(x1[i], x1[order[1:]])
-        yy1 = np.maximum(y1[i], y1[order[1:]])
-        xx2 = np.minimum(x2[i], x2[order[1:]])
-        yy2 = np.minimum(y2[i], y2[order[1:]])
-
-        w = np.maximum(0.0, xx2 - xx1 + 1)
-        h = np.maximum(0.0, yy2 - yy1 + 1)
-        inter = w * h
-        ovr = inter / (areas[i] + areas[order[1:]] - inter)
-
-        inds = np.where(ovr <= thresh)[0]
-        order = order[inds + 1]
-    # keep = keep[]
-    keep = np.array(keep)
-    # print(all_flag.shape)
-    # print(all_flag[keep])
-    # print(keep[all_flag[keep]])
-    return keep[all_flag[keep]]
-
-
-def display_result(results, img, img_name):
-    img_data = cv2.imread(img)
-    for idx, result in enumerate(results):
-        if len(result) == 0:
-            continue
-        # keep = py_cpu_nms(result, 0.5)
-        for bbox in result:
-            x1, y1, x2, y2, score = bbox
-            # if score < 0.2:
-            #     continue
-            # print(idx, colors[idx])
-            cv2.rectangle(img_data, (int(x1), int(y1)), (int(x2), int(y2)), colors[idx])
-            cv2.putText(img_data, CLASSES[idx], (int(x1), int(y1)), cv2.FONT_HERSHEY_PLAIN, 1.0, colors[idx], 1)
-    cv2.imwrite('/home/huangyecheng_2019/workspaces/mmdetection/work_dirs/img_results/' + img_name, img_data)
-
 
 def display_merge_result(results, img, img_name, w, h):
     w = math.ceil(w)
@@ -284,21 +193,32 @@ def display_merge_result(results, img, img_name, w, h):
     return new_img
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('coarse_detector_config', help='')
+    parser.add_argument('coarse_detector_config_ckpt', help='')
+    parser.add_argument('mp_det_config', help='')
+    parser.add_argument('mp_det_config_ckpt', help='')
+    parser.add_argument('dataset_anno', help='')
+    parser.add_argument('dataset_root', help='')
+    args = parser.parse_args()
+    return args
 
 
 def main():
     device = 'cuda'
-    coarse_detecor_config = '/home/huangyecheng_2019/workspaces/mmdetection/work_dirs/pretrained/fsaf.py'
-    coarse_detecor_config_ckpt = '/home/huangyecheng_2019/workspaces/mmdetection/work_dirs/pretrained/epoch_20.pth' # 0.381
-    mp_det_config = '/home/huangyecheng_2019/workspaces/mmdetection/configs/UAV/glf_baseline_res50.py'
-    mp_det_config_ckpt = '/home/huangyecheng_2019/workspaces/mmdetection/work_dirs/glf_baseline_res50/epoch_22.pth'
-    
+    args = parse_args()
+    coarse_detecor_config = args.coarse_detector_config
+    coarse_detecor_config_ckpt = args.coarse_detector_config_ckpt
+    mp_det_config = args.mp_det_config
+    mp_det_config_ckpt = args.mp_det_config_ckpt
+ 
     coarse_detecor = init_detector(coarse_detecor_config, coarse_detecor_config_ckpt, device=device)
     mp_det = init_detector(mp_det_config, mp_det_config_ckpt, device=device)
-    train_info = '/home/huangyecheng_2019/dataset/COCO/annotations/instances_UAVval_v1.json'
-    root = '/home/huangyecheng_2019/dataset/COCO/images/UAVval'
+    dataset_anno = args.dataset_anno
+    dataset_root = args.dataset_root
 
-    with open(train_info) as f:
+    with open(dataset_anno) as f:
         json_info = json.load(f)
     annotation_set = {}
     for annotation in json_info['annotations']:
@@ -307,7 +227,7 @@ def main():
             annotation_set[image_id] = []
         annotation_set[image_id].append(annotation)
 
-    coco = COCO(train_info)  # 导入验证集
+    coco = COCO(dataset_anno)  # 导入验证集
     size = len(list(coco.imgs.keys()))
     results = []
     times = []
@@ -326,7 +246,7 @@ def main():
         width = coco.imgs[key]['width']
         height = coco.imgs[key]['height']
         img_name = coco.imgs[key]['file_name']
-        img = os.path.join(root, img_name)
+        img = os.path.join(dataset_root, img_name)
         data = dict(img=img)
         cur_annotation = annotation_set[key]
         first_results = my_inference_detector(coarse_detecor, LoadImage()(data))

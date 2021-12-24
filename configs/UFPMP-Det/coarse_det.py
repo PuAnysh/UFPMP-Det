@@ -56,7 +56,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.05,
-    nms=dict(type='nms', iou_threshold=0.6),
+    nms=dict(type='nms', iou_threshold=0.6, class_agnostic=True),
     max_per_img=500)
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
