@@ -31,6 +31,15 @@ Build by yourself: We provide two data set conversion tools.
 python UFPMP-Det-Tools/build_dataset/VisDrone2COCO.py
 # conver UAVDT to COCO
 python UFPMP-Det-Tools/build_dataset/UAVDT2COCO.py
+# build UFP dataset(VisDrone)
+CUDA_VISIBLE_DEVICES=2 python UFPMP-Det-Tools/build_dataset/UFP_VisDrone2COCO.py \
+    ./configs/UFPMP-Det/coarse_det.py \
+    ./work_dirs/coarse_det/epoch_12.pth \
+    xxxxxx/dataset/COCO/images/UAVtrain \
+    xxxxxx/dataset/COCO/annotations/instances_UAVtrain_v1.json \
+    xxxxxx/dataset/COCO/images/instance_UFP_UAVtrain/ \
+    xxxxxx/dataset/COCO/annotations/instance_UFP_UAVtrain.json \
+    --txt_path path_to_VisDrone_annotation_dir
 ```
 
 Download:
@@ -52,6 +61,12 @@ CUDA_VISIBLE_DEVICES=0 python tools/train.py ./config/UFPMP-Det/mp_det_res50.py
 # Test
 
 ```shell
-CUDA_VISIBLE_DEVICES=0 python UFPMP-Det-Tools/eval_script/ufpmp_det_eval.py
+CUDA_VISIBLE_DEVICES=2 python UFPMP-Det-Tools/eval_script/ufpmp_det_eval.py \
+    ./configs/UFPMP-Det/coarse_det.py \
+    ./work_dirs/coarse_det/epoch_12.pth \
+    ./configs/UFPMP-Det/mp_det_res50.py  \
+    ./work_dirs/mp_det_res50/epoch_12.pth \
+    XXXXX/dataset/COCO/annotations/instances_UAVval_v1.json \
+    XXXXX/dataset/COCO/images/UAVval
 
 ```
