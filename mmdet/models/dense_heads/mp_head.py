@@ -269,7 +269,7 @@ class MPHead(GFLHead):
         # print(loss_op)
         return sum(loss_op) / self.num_classes
     
-    def py_softmax_sup_com_my_v2_back(self, features, labels, weighted=None, avg_factor = None):
+    def contrastive(self, features, labels, weighted=None, avg_factor = None):
         device = features.device
         # compute logits
         anchor_count = features.shape[0]
@@ -397,7 +397,7 @@ class MPHead(GFLHead):
             cls_score, (labels, score),
             weight=label_weights,
             avg_factor=num_total_samples)
-        loss_cls_emb = self.py_softmax_sup_com_my_v2_back(features = cls_feat, labels = labels, weighted = label_weights, avg_factor = num_total_samples)
+        loss_cls_emb = self.contrastive(features = cls_feat, labels = labels, weighted = label_weights, avg_factor = num_total_samples)
         return loss_cls, loss_bbox, loss_dfl, weight_targets.sum(), loss_cls_emb * self.beta, score
 
 

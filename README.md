@@ -4,9 +4,9 @@ The repo is the official implement of  UFPMP-Det.
 
 The code of **UFP** **module** is at [mmdet/core/ufp](mmdet/core/ufp)
 
-The code of MP-Det is at [mmdet/models/dense_heads/mp_head.py](mmdet/models/dense_heads/mp_head.py)
+The code of **MP-Det is** at [mmdet/models/dense_heads/mp_head.py](mmdet/models/dense_heads/mp_head.py)
 
-The config of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
+The **config** of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
 
 # Install
 
@@ -16,7 +16,10 @@ The config of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
    pip install albumentations
    ```
 ## Quick start
-We provide the checkport as follow:
+We provide the Dataset(COCO Format) as follow:
+- VisDrone:链接：https://pan.baidu.com/s/1FfAsAApHZruucO5A2QgQAg 提取码：qrvs
+
+We provide the checkpoint as follow:
 coming soon
 
 # Training
