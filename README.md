@@ -18,6 +18,7 @@ The **config** of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
 ## Quick start
 We provide the Dataset(COCO Format) as follow:
 - VisDrone:链接：https://pan.baidu.com/s/1FfAsAApHZruucO5A2QgQAg 提取码：qrvs
+- UAVDT:链接：链接：https://pan.baidu.com/s/1KLmU5BBWwgtFbuZa7QWavw 提取码：z08x
 
 We provide the checkpoint as follow:
 coming soon
