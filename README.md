@@ -76,3 +76,15 @@ CUDA_VISIBLE_DEVICES=2 python UFPMP-Det-Tools/eval_script/ufpmp_det_eval.py \
     XXXXX/dataset/COCO/images/UAVval
 
 ```
+## Citation
+
+If you find our paper or this project helps your research, please kindly consider citing our paper in your publication.
+
+```
+@inproceedings{beierxERM,
+  title={UFPMP-Det: Toward Accurate and Efficient Object Detection on Drone Imagery},
+  author={Huang, Yecheng and Chen, Jiaxin and Huang, Di},
+  booktitle={AAAI Conference on Artificial Intelligence},
+  year={2022}
+}
+```
