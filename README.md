@@ -21,7 +21,8 @@ We provide the Dataset(COCO Format) as follow:
 - UAVDT:链接：链接：https://pan.baidu.com/s/1KLmU5BBWwgtFbuZa7QWavw 提取码：z08x
 
 We provide the checkpoint as follow:
-coming soon
+- VisDrone Coarse-Det:链接: https://pan.baidu.com/s/1jK3bqImDGSwqRJGVXinS0w 提取码: nab3
+- VisDrone MP-Det ResNet50: 链接: https://pan.baidu.com/s/1zOoJVO2fPejnzM9KioZLuQ 提取码: m7rj
 
 # Training
 
