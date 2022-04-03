@@ -1,6 +1,6 @@
 # UFPMP-Det: Toward Accurate and Efficient Object Detection on Drone Imagery
 
-The repo is the official implement of  UFPMP-Det.
+The repo is the official implementation of  UFPMP-Det.
 
 The code of **UFP** **module** is at [mmdet/core/ufp](mmdet/core/ufp)
 
@@ -15,18 +15,18 @@ The **config** of our project is at [configs/UFPMP-Det](configs/UFPMP-Det)
    pip install nltk
    pip install albumentations
    ```
-## Quick start
-We provide the Dataset(COCO Format) as follow:
+## Quickstart
+We provide the Dataset(COCO Format) as follows:
 - VisDrone:链接：https://pan.baidu.com/s/1FfAsAApHZruucO5A2QgQAg 提取码：qrvs
 - UAVDT:链接：链接：https://pan.baidu.com/s/1KLmU5BBWwgtFbuZa7QWavw 提取码：z08x
 
-We provide the checkpoint as follow:
+We provide the checkpoint as follows:
 - VisDrone Coarse-Det:链接: https://pan.baidu.com/s/1jK3bqImDGSwqRJGVXinS0w 提取码: nab3
 - VisDrone MP-Det ResNet50: 链接: https://pan.baidu.com/s/1zOoJVO2fPejnzM9KioZLuQ 提取码: m7rj
 
 # Training
 
-This repo only suppose singal GPU.
+This repo is only supposed single GPU.
 
 ## Prepare
 
