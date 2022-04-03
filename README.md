@@ -50,7 +50,7 @@ CUDA_VISIBLE_DEVICES=2 python UFPMP-Det-Tools/build_dataset/UFP_VisDrone2COCO.py
 
 Download:
 
-coming soon
+In Quick Start
 
 ## Train Coarse Detector
 
