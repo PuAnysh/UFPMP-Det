@@ -142,14 +142,14 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=8,
+    samples_per_gpu=5,
     workers_per_gpu=2,
     train=dict(
         type='RepeatDataset',
-        times=3,
+        times=5,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'annotations/instances_UAVDTtrain.json',
+            ann_file=data_root + 'annotations/instances_UAVDTtrain_mask.json',
             img_prefix=data_root +  '/images/UAV-benchmark-M/',
             pipeline=train_pipeline)),
     val=dict(
@@ -168,3 +168,12 @@ evaluation = dict(interval=1, metric='bbox')
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(
     _delete_=True, grad_clip=dict(max_norm=10, norm_type=2))
+# learning policy
+lr_config = dict(
+    policy='step',
+    warmup='linear',
+    warmup_iters=500,
+    warmup_ratio=0.001,
+    step=[1, 2])
+total_epochs = 3
+runner = dict(type='EpochBasedRunner', max_epochs=3)

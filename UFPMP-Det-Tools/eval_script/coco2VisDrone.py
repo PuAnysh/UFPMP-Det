@@ -8,7 +8,7 @@ import json
 def main():
     train_info = '/home/huangyecheng_2019/dataset/COCO/annotations/instances_UAVval_v1.json'
     # the coco result format json file 
-    json_file = '/home/huangyecheng_2019/workspaces/mmdetection/UAV_bbox_result_tmp_v2.json'
+    json_file = '/home/huangyecheng_2019/workspaces/UFPMP-Det/UAV_bbox_result_tmp.json'
 
     json_gt = json.load(open(train_info))
 
@@ -34,8 +34,7 @@ def main():
             [bbox[0], bbox[1], bbox[2], bbox[3], score, category_id, -1, -1]
         )
 
-    root = '/home/huangyecheng_2019/workspaces/mmdetection/work_dirs/pred_txt/'
-
+    root = './pred_txt/'
     for img_id in img_id_2_img_results.keys():
         name = img_id_2_img_name[img_id]
         fp = open(root+name,'w')
@@ -51,3 +50,5 @@ def main():
                 outline += str(num) + ' '
             fp.write(outline + '\n')
         fp.close()
+
+main()
